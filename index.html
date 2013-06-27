@@ -2,8 +2,143 @@
 <html>
 <head>
 	<title>Stippling</title>
-</head>
-<body>
+	<script type="text/javascript" src="sylvester.js"></script>
+	<script type="text/javascript" src="glUtils.js"></script>
+	<script type="text/javascript" src="webgl-utils.js"></script>
+	<script type="text/javascript" src="voronoi.js"></script>
+	<script type="text/javascript" src="stippling.js"></script>
 
+	<script id="shader-fs" type="x-shader/x-fragment">
+		#ifdef GL_ES
+			precision highp float;
+		#endif
+		varying vec4 vColor;
+
+		void main(void) {
+			gl_FragColor = vColor;
+		}
+	</script>
+
+	<script id="shader-vs" type="x-shader/x-vertex">
+		attribute vec3 aVertexPosition;
+		attribute vec4 aVertexColor;
+
+		uniform mat4 uMVMatrix;
+		uniform mat4 uPMatrix;
+
+		varying vec4 vColor;
+
+		void main(void) {
+			gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+			vColor = aVertexColor;
+		}
+	</script>
+
+	<script type="text/javascript">
+	/* WebGL boilerplate code */
+		function getShader(gl, id) {
+			var shaderScript = document.getElementById(id);
+			if (!shaderScript) {
+				return null;
+			}
+
+			var str = "";
+			var k = shaderScript.firstChild;
+			while (k) {
+				if (k.nodeType == 3) {
+					str += k.textContent;
+				}
+				k = k.nextSibling;
+			}
+
+			var shader;
+			if (shaderScript.type == "x-shader/x-fragment") {
+				shader = gl.createShader(gl.FRAGMENT_SHADER);
+			}
+			else if (shaderScript.type == "x-shader/x-vertex") {
+				shader = gl.createShader(gl.VERTEX_SHADER);
+			}
+			else {
+				return null;
+			}
+
+			gl.shaderSource(shader, str);
+			gl.compileShader(shader);
+
+			if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+				alert(gl.getShaderInfoLog(shader));
+				return null;
+			}
+
+			return shader;
+		}
+
+		var mvMatrix;
+		function loadIdentity() { mvMatrix = Matrix.I(4); }
+		function multMatrix(m) { mvMatrix = mvMatrix.x(m); }
+		function mvTranslate(v) {
+			var m = Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4();
+			multMatrix(m);
+		}
+		var pMatrix;
+		function perspective(fovy, aspect, znear, zfar) {
+			pMatrix = makePerspective(fovy, aspect, znear, zfar);
+		}
+
+		function ortho(left, right, bottom, top, znear, zfar) {
+			pMatrix = makeOrtho(left, right, bottom, top, znear, zfar);
+		}
+
+		function setMatrixUniforms() {
+			gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, new Float32Array(pMatrix.flatten()));
+			gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, new Float32Array(mvMatrix.flatten()));
+		}
+
+		var gl;
+		var gl2d;
+		function initGL(canvas) {
+			try {
+				gl = canvas.getContext("experimental-webgl");
+				gl.viewportWidth = canvas.width;
+				gl.viewportHeight = canvas.height;
+			}
+			catch(e) {
+				if (!gl) { alert("Could not initialize WebGL"); }
+			}
+		}
+
+		var shaderProgram;
+		function initShaders() {
+			var fragmentShader 	= getShader(gl, "shader-fs");
+			var vertexShader	= getShader(gl, "shader-vs");
+
+			shaderProgram = gl.createProgram();
+			gl.attachShader(shaderProgram, vertexShader);
+			gl.attachShader(shaderProgram, fragmentShader);
+			gl.linkProgram(shaderProgram);
+
+			if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+				alert("Could not initialize shaders");
+			} 
+
+			gl.useProgram(shaderProgram);
+
+			shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+			gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+			shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+			gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+
+			shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+			shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+		}
+	</script>
+</head>
+
+<body onload="pageStart();">
+	<!-- Text that will be used to perform experiments with js -->
+	<div id="test">Text here</div>
+	<canvas id="2d-canvas" style="border: none; position: absolute;" width="900" height="675"></canvas>
+	<canvas id="main-canvas" style="border: none; position: absolute;" width="900" height="675"></canvas>
 </body>
 </html>
