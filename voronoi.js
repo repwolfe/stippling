@@ -121,12 +121,18 @@ function getCursorPosition(e) {
 // Mouse handlers
 var mouseIsDown = false;
 var curColor = null;
-
+var mousePosition = null;
 /**
  * Event handler when the mouse is pressed own
  */
 function startDown(e) {
 	mouseIsDown = true;
+
+	//
+	mousePosition = getCursorPosition(e);
+	return;
+	//
+
 	curColor = randColor(fragments * 3);
 	canvasMouseMove(e);
 }
@@ -138,11 +144,15 @@ function canvasMouseMove(e) {
 	if (!mouseIsDown) return;		// Do nothing if not pressing down on mouse
 
 	// Temporarily add a point where the mouse currently is pressed
-	var p = getCursorPosition(e);
+	mousePosition = getCursorPosition(e);
+
+	//
+	return;
+	//
 
 	var c = new Point();
-	c.x = p[0];
-	c.y = p[1];
+	c.x = mousePosition[0];
+	c.y = mousePosition[1];
 	c.colorArray = curColor;
 	c.colorSize = fragments * 3;
 
@@ -156,6 +166,10 @@ function canvasMouseMove(e) {
  */
 function canvasClick(e) {
 	mouseIsDown = false;
+
+	//
+	return;
+
 	var p = getCursorPosition(e);
 	addCone(p[0], p[1], curColor);
 	curColor = null;
@@ -209,7 +223,18 @@ function tick() {
 
 	// TODO: Use this if necessary
 	if (mouseIsDown) {
-		points[0].x = points[0].x - 1;
+		//gl.readPixels(mousePosition[0], mousePosition[1], 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+		redraw();
+		var buf = new Uint8Array(gl.canvas.width * gl.canvas.height * 4);
+		gl.readPixels(0, 0, gl.canvas.width, gl.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+		// inverse the y location of mouse, each increase in y covers width * 4 pixels
+		var index = ((gl.canvas.height - mousePosition[1]) * gl.canvas.width * 4) + mousePosition[0] * 4;
+		var r = buf[index];
+		var g = buf[index + 1];
+		var b = buf[index + 2];
+		$("test").style.backgroundColor="rgba(" + [r, g, b, 1] + ")";
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	}
 }
 
@@ -241,6 +266,7 @@ function redraw(point) {
 	gl.depthFunc(gl.LEQUAL);
 
 	startScene();
+
 	for (var i = 0; i < points.length; ++i) {
 		drawCone(points[i]);
 	}
@@ -250,7 +276,7 @@ function redraw(point) {
 		drawCone(point);
 	}
 
-	gl.depthMask(false);
+	gl.depthMask(false);	
 }
 
 /**
@@ -293,4 +319,37 @@ function drawCircle2D(ctx, x, y, radius) {
 	ctx.stroke();
 	ctx.fillStyle = "#000";
 	ctx.fill();
+}
+
+var frameBuffer;
+var texture;
+
+/**
+ * Create a texture and framebuffer to render the voronoi diagram to
+ * This will allow us to capture pixel colors that are outputted, to determine voronoi regions
+ */
+function initTextureFrameBuffer() {
+	frameBuffer = gl.createFramebuffer();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+	frameBuffer.width = canvas.width;	// texture needs to be power of 2?????!!
+	frameBuffer.height = canvas.height;
+
+	texture = gl.createTexture();
+	gl.bindTexture(gl.TEXTURE_2D, texture);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+	gl.generateMipmap(gl.TEXTURE_2D);
+
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+	var renderbuffer = gl.createRenderbuffer();
+	gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+	gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
+
+	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);	// space for rendering colours is our texture
+	gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);		// depth information should use our depth buffer
+
+	gl.bindTexture(gl.TEXTURE_2D, null);
+	gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }

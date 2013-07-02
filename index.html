@@ -95,7 +95,7 @@
 		}
 
 		var gl;
-		var gl2d;
+		var gl2d;	// For drawing points
 		function initGL(canvas) {
 			try {
 				gl = canvas.getContext("experimental-webgl");
@@ -138,7 +138,7 @@
 <body onload="pageStart();">
 	<!-- Text that will be used to perform experiments with js -->
 	<div id="test">Text here</div>
-	<canvas id="2d-canvas" style="border: none; position: absolute;" width="900" height="675"></canvas>
-	<canvas id="main-canvas" style="border: none; position: absolute;" width="900" height="675"></canvas>
+	<canvas id="2d-canvas" style="border: none; position: absolute;" width="512" height="512"></canvas>
+	<canvas id="main-canvas" style="border: none; position: absolute;" width="512" height="512"></canvas>
 </body>
 </html>
