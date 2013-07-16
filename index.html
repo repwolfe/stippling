@@ -132,12 +132,99 @@
 			shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
 			shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
 		}
+
+		var vor;
+		/**
+		 * Sets up everything at startup
+		 */
+		function pageStart() {
+			var canvas = $("main-canvas");
+			canvas.addEventListener("mousedown", startDown, false);
+			canvas.addEventListener("mousemove", canvasMouseMove, false);
+			canvas.addEventListener("mouseup", canvasClick, false);
+			initGL(canvas);
+
+			canvas = $("2d-canvas");
+			canvas.addEventListener("mousedown", startDown, false);
+			canvas.addEventListener("mousemove", canvasMouseMove, false);
+			canvas.addEventListener("mouseup", canvasClick, false);
+			canvas.style.zIndex = "100";
+			gl2d = canvas.getContext("2d");
+
+			initShaders();
+			
+			vor = new Voronoi(gl, gl2d, shaderProgram);
+			vor.init();
+			vor.draw();
+
+			tick();
+		}
+
+		/**
+		 * Convenience function to get the cursors position
+		 */
+		function getCursorPosition(e) {
+			var x, y;
+			if (e.pageX || e.pageY) {
+				x = e.pageX;
+				y = e.pageY;
+			}
+			else {
+				x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+				y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+			}
+			x -= document.getElementById("main-canvas").offsetLeft;
+			y -= document.getElementById("main-canvas").offsetTop;
+
+			return [x, y];
+		}
+
+		// Mouse handlers
+		var mouseIsDown = false;
+		var curColor = null;
+		var mousePosition = null;
+		var canvasClicked = false;
+		/**
+		 * Event handler when the mouse is pressed own
+		 */
+		function startDown(e) {
+			mouseIsDown = true;
+			mousePosition = getCursorPosition(e);
+		}
+
+		/**
+		 * Event handler when the mouse is moved over the canvas
+		 */
+		function canvasMouseMove(e) {
+			if (!mouseIsDown) return;		// Do nothing if not pressing down on mouse
+			mousePosition = getCursorPosition(e);
+		}
+
+		/**
+		 * Event handler when a mouse click occurs
+		 * Adds a new point to the voronoi diagram
+		 */
+		function canvasClick(e) {
+			mouseIsDown = false;
+			canvasClicked = !canvasClicked;
+			return;
+		}
+
+		/**
+		 * This function is called every animation frame
+		 */
+		function tick() {
+			requestAnimFrame(tick);
+
+			// TODO: Use this if necessary
+			if (canvasClicked) {
+				vor.moveToCentroid();
+			}
+		}
 	</script>
 </head>
 
 <body onload="pageStart();">
-	<!-- Text that will be used to perform experiments with js -->
-	<div id="test">Text here</div>
 	<canvas id="2d-canvas" style="border: none; position: absolute;" width="512" height="512"></canvas>
 	<canvas id="main-canvas" style="border: none; position: absolute;" width="512" height="512"></canvas>
 </body>

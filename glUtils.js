@@ -173,3 +173,8 @@ function makeOrtho(left, right, bottom, top, znear, zfar)
            [0, 0, -2 / (zfar - znear), tz],
            [0, 0, 0, 1]]);
 }
+
+/**
+ * Convenience function to get access an HTML element
+ */
+function $(id) { return document.getElementById(id); }
