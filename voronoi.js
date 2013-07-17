@@ -9,19 +9,19 @@
  * Class representing a Point
  */
 function Point() {
-	var colorArray;
-	var colorSize;
+	var vertexColorsArray;
+	var vertexColorsSize;
 	var x, y;
 }
 
 /**
- * Class representing a Color
+ * Class representing an RGBA Color with values [0, 255]
  */
-function Color() {
-	var r;
-	var g;
-	var b;
-	var a;
+function Color(r_, g_, b_, a_) {
+	this.r = r_;
+	this.g = g_;
+	this.b = b_;
+	this.a = a_;
 
 	/**
 	 * The String representation of a Color
@@ -29,6 +29,15 @@ function Color() {
 	this.toString = function() {
 		return this.r + "," + this.g + "," + this.b + "," + this.a;
 	};
+
+	/**
+	 * Returns an array of the color values of this object
+	 * normalized to be [0, 1]
+	 */
+	this.normalized = function() {
+		var MAX_VALUE = 255;
+		return [this.r / MAX_VALUE, this.g / MAX_VALUE, this.b / MAX_VALUE, this.a / MAX_VALUE];
+	}
 }
 
 /**
@@ -36,6 +45,8 @@ function Color() {
  * a voronoi diagram and manipulating it
  *
  * @param gl WebGL object
+ * @param gl2d 2D canvas object
+ * @param shaderProgram WebGL shader object
  */
 function Voronoi(gl, gl2d, shaderProgram) {
 	var _gl = gl;
@@ -49,7 +60,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	var _coneVertexPositionBuffer;
 
 	var _points = [];
-	var _colors = [];
+	var _colorToPoints = {};
 
 	var _maxPoints = 40;
 	var _minPoints = 20;
@@ -98,15 +109,46 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		var num = Math.floor(Math.random() * (_maxPoints - _minPoints)) + _minPoints;
 		var wid = $('2d-canvas').width;
 		var hei = $('2d-canvas').height;
+
+		// Color creation variables
+		var MAX_VALUE 		= 255;
+		var center 			= 128;
+		var width 			= 127;
+		var redFrequency 	= 1.666;	// These frequencies create a large variety of colors
+		var greenFrequency 	= 2.666;
+		var blueFrequency 	= 3.666;
+
 		for (var i = 0; i < num; ++i) {
-			var c = new Point();
-			c.x = Math.floor(Math.random() * wid);
-			c.y = Math.floor(Math.random() * hei);
-			c.colorArray = randColor(_fragments * 3);
-			c.colorSize = _fragments * 3;
-			_colors = _colors.concat(getColorObject(c.colorArray).toString());
-			_points = _points.concat(c);
+			var p = new Point();
+			p.x = Math.floor(Math.random() * wid);
+			p.y = Math.floor(Math.random() * hei);
+
+			// Use sine waves to create highly varied colors such that there are no duplicates
+			var r = Math.floor(Math.sin(redFrequency 	* i) * width + center);
+			var g = Math.floor(Math.sin(greenFrequency 	* i) * width + center);
+			var b = Math.floor(Math.sin(blueFrequency 	* i) * width + center);
+			var c = new Color(r, g, b, MAX_VALUE);
+
+			p.vertexColorsSize = _fragments * 3;
+			p.vertexColorsArray = this.getColorArray(c, p.vertexColorsSize);
+			_points = _points.concat(p);
+			_colorToPoints[c.toString()] = p;
 		}
+	};
+
+	/**
+	 * Takes a color object and creates an array of the given size with
+	 * the color values normalized
+	 *
+	 * This is so each vertex has the same color
+	 */
+	this.getColorArray = function(color, size) {
+	 	var arr = [];
+	 	for (var i = 0; i < size; ++i) {
+	 		arr = arr.concat(color.normalized());
+	 	}
+
+	 	return arr;
 	};
 
 	/**
@@ -121,7 +163,11 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		_gl.depthMask(true);
 		_gl.depthFunc(_gl.LEQUAL);
 
-		this.startScene();
+		// WebGL boilerplate code at the beginning of rendering
+		gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
+		loadIdentity();
 
 		for (var i = 0; i < _points.length; ++i) {
 			this.drawCone(_points[i]);
@@ -133,16 +179,6 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		}
 
 		_gl.depthMask(false);	
-	};
-
-	/**
-	 * WebGL boilerplate code at the beginning of rendering
-	 */
-	this.startScene = function() {
-		gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-		ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
-		loadIdentity();
 	};
 
 	/**
@@ -164,7 +200,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		_gl.vertexAttribPointer(_shaderProgram.vertexPositionAttribute, 
 								_coneVertexPositionBuffer.itemSize, _gl.FLOAT, false, 0, 0);
 
-		_gl.bindBuffer(_gl.ARRAY_BUFFER, getColorBuffer(p.colorArray, p.colorSize));
+		_gl.bindBuffer(_gl.ARRAY_BUFFER, this.getColorBuffer(p.vertexColorsArray, p.vertexColorsSize));
 		_gl.vertexAttribPointer(_shaderProgram.vertexColorAttribute, 4, _gl.FLOAT, false, 0, 0);
 
 		setMatrixUniforms();
@@ -191,20 +227,36 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	/**
 	 * TODO
 	 */
+	this.getColorBuffer = function(color, size) {
+		var tempVertexColorBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, tempVertexColorBuffer);
+
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW);
+		tempVertexColorBuffer.itemSize = 4;
+		tempVertexColorBuffer.numItems = size;
+
+		return tempVertexColorBuffer;
+	};
+
+	/**
+	 * TODO
+	 */
 	var _calculateCentroids = function() {
 		var centroids = {};
 		var regionTotals = {};
 
 		// Initialize containers
-		for (var i = 0; i < _colors.length; ++i) {
-			var color = _colors[i];
-			var p = new Point();
-			p.x = 0;
-			p.y = 0;
-			p.colorArray = _points[i].colorArray;
-			p.colorSize = _points[i].colorSize;
-			centroids[color] = p;
-			regionTotals[color] = 0;
+		for (var color in _colorToPoints) {
+			if (_colorToPoints.hasOwnProperty(color)) {
+				var oldP = _colorToPoints[color];
+				var p = new Point();
+				p.x = 0;
+				p.y = 0;
+				p.vertexColorsArray = oldP.vertexColorsArray;
+				p.vertexColorsSize = oldP.vertexColorsSize;
+				centroids[color] = p;
+				regionTotals[color] = 0;
+			}
 		}
 
 		// Get the pixel colours to determine which region they belong to
@@ -235,13 +287,14 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		}
 
 		var centroidPoints = [];
-		for (var i = 0; i < _colors.length; ++i) {
-			var color = _colors[i];
-			if (regionTotals[color] > 0) {
-				centroids[color].x  = centroids[color].x / regionTotals[color];
-				centroids[color].y  = centroids[color].y / regionTotals[color];
+		for (color in _colorToPoints) {
+			if (regionTotals.hasOwnProperty(color) && centroids.hasOwnProperty(color)) {
+				if (regionTotals[color] > 0) {
+					centroids[color].x  = centroids[color].x / regionTotals[color];
+					centroids[color].y  = centroids[color].y / regionTotals[color];
+				}
+				centroidPoints.push(centroids[color]);
 			}
-			centroidPoints.push(centroids[color]);
 		}
 
 		return centroidPoints;
@@ -254,15 +307,6 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		_points = _calculateCentroids();
 		this.draw();
 	};
-}
-
-function getColorObject(arr) {
-	var c = new Color();
-	c.r = Math.round(arr[0] * 255);
-	c.g = Math.round(arr[1] * 255);
-	c.b = Math.round(arr[2] * 255);
-	c.a = Math.round(1.0 * 255);
-	return c;
 }
 
 var frameBuffer;
@@ -297,34 +341,4 @@ function initTextureFrameBuffer() {
 	gl.bindTexture(gl.TEXTURE_2D, null);
 	gl.bindRenderbuffer(gl.RENDERBUFFER, null);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-}
-
-/**
- * Returns an array of random colors, as many as 'size'
- */
- function randColor(size) {
- 	var i1 = Math.random().toFixed(3);
- 	var i2 = Math.random().toFixed(3);
- 	var i3 = Math.random().toFixed(3);
-
- 	var color = [];
- 	for (var i = 0; i < size; ++i) {
- 		color = color.concat([i1, i2, i3, 1.0]);
- 	}
-
- 	return color;
- }
-
-/**
- * TODO
- */
-function getColorBuffer(color, size) {
-	var tempVertexColorBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, tempVertexColorBuffer);
-
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW);
-	tempVertexColorBuffer.itemSize = 4;
-	tempVertexColorBuffer.numItems = size;
-
-	return tempVertexColorBuffer;
 }
