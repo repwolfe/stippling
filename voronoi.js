@@ -49,13 +49,14 @@ function Color(r_, g_, b_, a_) {
  * @param shaderProgram WebGL shader object
  */
 function Voronoi(gl, gl2d, shaderProgram) {
-	var _gl = gl;
-	var _gl2d = gl2d;
+	var _gl 	= gl;
+	var _gl2d 	= gl2d;
 	var _shaderProgram = shaderProgram;
-	var self = this;		// Allows me to call public functions from private ones
+	var self = this;				// Makes it possible to call public functions from private ones
 
-	var _coneRadius = 1500;
-	var _fragments = 50;
+	var _coneRadius = 1500;			// How large each cone should be
+	var _fragments = 50;			// Determines how smooth the rendered cones are
+	var _verticesPerFragment = 3;	// Each fragment is a triangle
 
 	var _coneVertexPositionBuffer;
 
@@ -72,7 +73,10 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	};
 
 	/**
-	 * ????
+	 * Initializes the cone vertex position buffer with all the vertices
+	 *
+	 * Each cone is made of triangles, the number of which is the value of _fragments
+	 * The point of the cone is away from the screen, such that we are facing the bottom of the cone
 	 */
 	this.initVertices = function() {
 		_coneVertexPositionBuffer = _gl.createBuffer();
@@ -80,7 +84,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 		var degInc = 360.0 / _fragments;
 		var height = _coneRadius / Math.tan(45 * Math.PI / 180.0);
-		var numPer = 3;		// RENAME THIS VARIABLE
+		var itemSize = 3;	// Dimension of each vertex
 
 		var vertices = [];
 
@@ -88,7 +92,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		for (var i = 0; i < _fragments; ++i) {
 			vertices = vertices.concat([0, 0, 0]);
 
-			for (var j = 0; j < numPer - 1; ++j) {
+			for (var j = 0; j < _verticesPerFragment - 1; ++j) {
 				var x1 = _coneRadius * Math.cos((curDeg + j * degInc) * Math.PI / 180.0);
 				var y1 = _coneRadius * Math.sin((curDeg + j * degInc) * Math.PI / 180.0);
 
@@ -98,8 +102,10 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		}
 		_gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), _gl.STATIC_DRAW);
 
-		_coneVertexPositionBuffer.itemSize = numPer;
-		_coneVertexPositionBuffer.numItems = _fragments * numPer;
+		_coneVertexPositionBuffer.itemSize = itemSize;
+		_coneVertexPositionBuffer.numItems = _fragments * itemSize;
+
+		_gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	};
 
 	/**
@@ -129,7 +135,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 			var b = Math.floor(Math.sin(blueFrequency 	* i) * width + center);
 			var c = new Color(r, g, b, MAX_VALUE);
 
-			p.vertexColorsSize = _fragments * 3;
+			p.vertexColorsSize = _fragments * _verticesPerFragment;
 			p.vertexColorsArray = this.getColorArray(c, p.vertexColorsSize);
 			_points = _points.concat(p);
 			_colorToPoints[c.toString()] = p;
@@ -153,8 +159,11 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 	/**
 	 * Renders the voronoi diagram
+	 *
+	 * Draws a bunch of cones, such that the point of each cone is located at each
+	 * generating point. The cones overlap, displaying the correct voronoi diagram
 	 */
-	this.draw = function(point) {
+	this.draw = function() {
 		_gl2d.clearRect(0, 0, $('2d-canvas').width, $('2d-canvas').height);
 
 		_gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -173,16 +182,13 @@ function Voronoi(gl, gl2d, shaderProgram) {
 			this.drawCone(_points[i]);
 		}
 
-		// Draw the point parameter that may not be in the point list
-		if (point) {
-			this.drawCone(point);
-		}
-
 		_gl.depthMask(false);	
 	};
 
 	/**
-	 * TODO
+	 * Draws a cone whose point is located at the given location
+	 *
+	 * @param p location of cone's point (and center)
 	 */
 	this.drawCone = function(p) {
 		if (p.x > ($('main-canvas').width + _coneRadius) || 
@@ -194,21 +200,25 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		}
 
 		loadIdentity();
-		mvTranslate([p.x, p.y, 0.0]);
+		mvTranslate([p.x, p.y, 0.0]);		// Move origin to point's location
 
+		// Bind the vertex locations buffer
 		_gl.bindBuffer(_gl.ARRAY_BUFFER, _coneVertexPositionBuffer);
 		_gl.vertexAttribPointer(_shaderProgram.vertexPositionAttribute, 
 								_coneVertexPositionBuffer.itemSize, _gl.FLOAT, false, 0, 0);
 
-		_gl.bindBuffer(_gl.ARRAY_BUFFER, this.getColorBuffer(p.vertexColorsArray, p.vertexColorsSize));
+		// Bind the vertex colours buffer
+		_gl.bindBuffer(_gl.ARRAY_BUFFER, this.getColorBuffer(p.vertexColorsArray));
 		_gl.vertexAttribPointer(_shaderProgram.vertexColorAttribute, 4, _gl.FLOAT, false, 0, 0);
 
 		setMatrixUniforms();
+		// Draw the cone as a bunch of triangles
 		_gl.drawArrays(_gl.TRIANGLES, 0, _coneVertexPositionBuffer.numItems);
 
+		// Draw the generating point on top of WebGL's rendering
 		this.drawCircle2D(_gl2d, p.x, p.y, 2.5);
 
-		_gl.disable(_gl.BLEND);
+		_gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	};
 
 	/**
@@ -225,15 +235,13 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	};
 
 	/**
-	 * TODO
+	 * Creates a temporary WebGL buffer which contains the colours for vertices
 	 */
-	this.getColorBuffer = function(color, size) {
+	this.getColorBuffer = function(colors) {
 		var tempVertexColorBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, tempVertexColorBuffer);
-
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW);
-		tempVertexColorBuffer.itemSize = 4;
-		tempVertexColorBuffer.numItems = size;
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 		return tempVertexColorBuffer;
 	};
