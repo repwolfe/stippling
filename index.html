@@ -169,6 +169,11 @@
 			vor.reset(numStipples, displayVor);
 		}
 
+		function displayVorClicked() {
+			vor.setDisplayVor($("displayVor").checked);
+			vor.draw();
+		}
+
 		/**
 		 * Convenience function to get the cursors position
 		 */
@@ -215,7 +220,7 @@
 		 */
 		function canvasClick(e) {
 			mouseIsDown = false;
-			canvasClicked = !canvasClicked;
+			canvasClicked = true;
 			return;
 		}
 
@@ -225,8 +230,7 @@
 		function tick() {
 			requestAnimFrame(tick);
 
-			// TODO: Use this if necessary
-			if (canvasClicked) {
+			if (vor.isMakingCentroidal()) {
 				vor.moveToCentroid();
 			}
 		}
@@ -240,7 +244,7 @@
 	<div style="margin-left: 900px; padding: 15px;">
 		<form>
 		# of stipple points: <input type="number" id="numStipples" min="1" max="20000" value="100" required><br>
-		Display Voronoi: <input type="checkbox" id="displayVor" checked="true">Test</input> <br><br>
+		Display Voronoi: <input type="checkbox" id="displayVor" checked="true" onclick="displayVorClicked();">Test</input> <br><br>
 		</form>
 		
 		<button type="button" onclick="buttonClick();">Submit</button>

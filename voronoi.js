@@ -65,9 +65,12 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 	var _displayVor;
 
+	var _makingCentroidal;
+
 	this.init = function(numPoints, displayVor) {
 		this.initVertices();
 		_displayVor = displayVor;
+		_makingCentroidal = true;
 		this.resetPoints(numPoints);
 		//initTextureFrameBuffer();		// Is this needed????????
 	};
@@ -75,7 +78,16 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	this.reset = function(numPoints, displayVor) {
 		this.resetPoints(numPoints);
 		_displayVor = displayVor;
+		_makingCentroidal = true;
 		this.draw();
+	}
+
+	this.setDisplayVor = function(value) {
+		_displayVor = value;
+	}
+
+	this.isMakingCentroidal = function() {
+		return _makingCentroidal;
 	}
 
 	/**
@@ -294,9 +306,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		for (var y = 0; y < _gl.canvas.height; ++y) {
 			for (var x = 0; x < _gl.canvas.width; ++x) {
 				// Figure out which voronoi region this pixel belongs to
-
-				// inverse the y location of mouse, each increase in y covers width * 4 pixels
-				var index = (y * _gl.canvas.width * 4) + (x * 4);//((gl.canvas.height - y) * gl.canvas.width * 4) + x * 4;
+				var index = (y * _gl.canvas.width * 4) + (x * 4);		// there's 4 values for each pixel
 				var color = new Color();
 				color.r = pixels[index];
 				color.g = pixels[index + 1];
@@ -306,13 +316,14 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 				var pixelDensity = 1.0;
 				centroids[color].x += x * pixelDensity;
-				centroids[color].y += y * pixelDensity;
+				centroids[color].y += (gl.canvas.height - y) * pixelDensity;	// Inverse the y axis since its given upside down
 				regionTotals[color] += pixelDensity;	
 			}
 		}
 
 		var centroidPoints = [];
 		var averageDistanceMoved = 0;
+		var notMovingAnymore = 0.50;		// Value of the average distance moved which is considered "not moving" anymore
 		for (color in _colorToPoints) {
 			var newPoint;
 			if (_colorToPoints.hasOwnProperty(color) &&
@@ -324,13 +335,21 @@ function Voronoi(gl, gl2d, shaderProgram) {
 					newPoint.y  = newPoint.y / regionTotals[color];
 				}
 				centroidPoints.push(newPoint);
-			}
-			var oldPoint = _colorToPoints[color];
 
-			var distanceMoved = Math.sqrt(Math.pow(oldPoint.x - newPoint.x, 2) + Math.pow(oldPoint.y - newPoint.y, 2));
-			averageDistanceMoved += distanceMoved;
+				var oldPoint = _colorToPoints[color];
+
+				var distanceMoved = Math.sqrt(Math.pow(oldPoint.x - newPoint.x, 2) + Math.pow(oldPoint.y - newPoint.y, 2));
+				averageDistanceMoved += distanceMoved;
+
+				_colorToPoints[color] = newPoint;
+			}
 		}
 		averageDistanceMoved /= centroidPoints.length;
+
+		if (averageDistanceMoved <= notMovingAnymore) {
+			// Stop making it centroidal, it's basically there
+			_makingCentroidal = false;
+		}
 
 		return centroidPoints;
 	};
