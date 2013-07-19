@@ -60,17 +60,23 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 	var _coneVertexPositionBuffer;
 
-	var _points = [];
-	var _colorToPoints = {};
+	var _points;
+	var _colorToPoints;
 
-	var _maxPoints = 40;
-	var _minPoints = 20;
+	var _displayVor;
 
-	this.init = function() {
+	this.init = function(numPoints, displayVor) {
 		this.initVertices();
-		this.initPoints();
+		_displayVor = displayVor;
+		this.resetPoints(numPoints);
 		//initTextureFrameBuffer();		// Is this needed????????
 	};
+
+	this.reset = function(numPoints, displayVor) {
+		this.resetPoints(numPoints);
+		_displayVor = displayVor;
+		this.draw();
+	}
 
 	/**
 	 * Initializes the cone vertex position buffer with all the vertices
@@ -110,9 +116,9 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 	/**
 	 * Experimenting creating random poins to initialize the voronoi diagram
+	 * @param numPoints how many points to create
 	 */
-	this.initPoints = function() {
-		var num = Math.floor(Math.random() * (_maxPoints - _minPoints)) + _minPoints;
+	this.resetPoints = function(numPoints) {
 		var wid = $('2d-canvas').width;
 		var hei = $('2d-canvas').height;
 
@@ -124,7 +130,10 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		var greenFrequency 	= 2.666;
 		var blueFrequency 	= 3.666;
 
-		for (var i = 0; i < num; ++i) {
+		_points = [];
+		_colorToPoints = {};
+
+		for (var i = 0; i < numPoints; ++i) {
 			var p = new Point();
 			p.x = Math.floor(Math.random() * wid);
 			p.y = Math.floor(Math.random() * hei);
@@ -163,26 +172,37 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	 * Draws a bunch of cones, such that the point of each cone is located at each
 	 * generating point. The cones overlap, displaying the correct voronoi diagram
 	 */
-	this.draw = function() {
+	this.draw = function(force) {
 		_gl2d.clearRect(0, 0, $('2d-canvas').width, $('2d-canvas').height);
-
-		_gl.clearColor(0.0, 0.0, 0.0, 1.0);
-		_gl.clearDepth(1.0);
-		_gl.enable(_gl.DEPTH_TEST);
-		_gl.depthMask(true);
-		_gl.depthFunc(_gl.LEQUAL);
-
-		// WebGL boilerplate code at the beginning of rendering
-		gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-		ortho(0, gl.viewportWidth, gl.viewportHeight, 0, -5, 5000);
-		loadIdentity();
-
+		
 		for (var i = 0; i < _points.length; ++i) {
-			this.drawCone(_points[i]);
+			// Draw the generating point on top of WebGL's rendering
+			this.drawCircle2D(_gl2d, _points[i].x, _points[i].y, 2.5);
 		}
 
-		_gl.depthMask(false);	
+		if (force || _displayVor) {
+			_gl.enable(_gl.DEPTH_TEST);
+			_gl.depthMask(true);
+			_gl.depthFunc(_gl.LEQUAL);
+
+			_gl.clearColor(0.0, 0.0, 0.0, 1.0);
+			// WebGL boilerplate code at the beginning of rendering
+			_gl.viewport(0, 0, _gl.viewportWidth, _gl.viewportHeight);
+			_gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
+			ortho(0, _gl.viewportWidth, _gl.viewportHeight, 0, -5, 5000);
+			loadIdentity();
+
+			for (var i = 0; i < _points.length; ++i) {
+				this.drawCone(_points[i]);
+			}
+
+			_gl.depthMask(false);
+		}
+		else {
+			// Don't display the Voronoi, just white
+			_gl.clearColor(1.0, 1.0, 1.0, 1.0);
+			_gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
+		}
 	};
 
 	/**
@@ -214,9 +234,6 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		setMatrixUniforms();
 		// Draw the cone as a bunch of triangles
 		_gl.drawArrays(_gl.TRIANGLES, 0, _coneVertexPositionBuffer.numItems);
-
-		// Draw the generating point on top of WebGL's rendering
-		this.drawCircle2D(_gl2d, p.x, p.y, 2.5);
 
 		_gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	};
@@ -269,7 +286,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 		// Get the pixel colours to determine which region they belong to
 		_gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-		self.draw();
+		self.draw(true);
 		var pixels = new Uint8Array(_gl.canvas.width * _gl.canvas.height * 4);
 		_gl.readPixels(0, 0, _gl.canvas.width, _gl.canvas.height, _gl.RGBA, _gl.UNSIGNED_BYTE, pixels);
 		_gl.bindFramebuffer(_gl.FRAMEBUFFER, null);
@@ -295,15 +312,25 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		}
 
 		var centroidPoints = [];
+		var averageDistanceMoved = 0;
 		for (color in _colorToPoints) {
-			if (regionTotals.hasOwnProperty(color) && centroids.hasOwnProperty(color)) {
+			var newPoint;
+			if (_colorToPoints.hasOwnProperty(color) &&
+				regionTotals.hasOwnProperty(color) && 
+				centroids.hasOwnProperty(color)) {
+				newPoint = centroids[color];
 				if (regionTotals[color] > 0) {
-					centroids[color].x  = centroids[color].x / regionTotals[color];
-					centroids[color].y  = centroids[color].y / regionTotals[color];
+					newPoint.x  = newPoint.x / regionTotals[color];
+					newPoint.y  = newPoint.y / regionTotals[color];
 				}
-				centroidPoints.push(centroids[color]);
+				centroidPoints.push(newPoint);
 			}
+			var oldPoint = _colorToPoints[color];
+
+			var distanceMoved = Math.sqrt(Math.pow(oldPoint.x - newPoint.x, 2) + Math.pow(oldPoint.y - newPoint.y, 2));
+			averageDistanceMoved += distanceMoved;
 		}
+		averageDistanceMoved /= centroidPoints.length;
 
 		return centroidPoints;
 	};

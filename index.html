@@ -152,12 +152,21 @@
 			gl2d = canvas.getContext("2d");
 
 			initShaders();
+
+			var numStipples = $("numStipples").value;
+			var displayVor = $("displayVor").checked;
 			
 			vor = new Voronoi(gl, gl2d, shaderProgram);
-			vor.init();
+			vor.init(numStipples, displayVor);
 			vor.draw();
 
 			tick();
+		}
+
+		function buttonClick() {
+			var numStipples = $("numStipples").value;
+			var displayVor = $("displayVor").checked;
+			vor.reset(numStipples, displayVor);
 		}
 
 		/**
@@ -225,7 +234,16 @@
 </head>
 
 <body onload="pageStart();">
-	<canvas id="2d-canvas" style="border: none; position: absolute;" width="512" height="512"></canvas>
-	<canvas id="main-canvas" style="border: none; position: absolute;" width="512" height="512"></canvas>
+	<canvas id="2d-canvas" style="border: none; position: absolute;" width="900" height="550"></canvas>
+	<canvas id="main-canvas" style="border: none; position: absolute;" width="900" height="550"></canvas>
+	
+	<div style="margin-left: 900px; padding: 15px;">
+		<form>
+		# of stipple points: <input type="number" id="numStipples" min="1" max="20000" value="100" required><br>
+		Display Voronoi: <input type="checkbox" id="displayVor" checked="true">Test</input> <br><br>
+		</form>
+		
+		<button type="button" onclick="buttonClick();">Submit</button>
+	</div>
 </body>
 </html>
