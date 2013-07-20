@@ -139,12 +139,16 @@
 		 */
 		function pageStart() {
 			var canvas = $("main-canvas");
+			canvas.width = canvas.clientWidth;
+			canvas.height = canvas.clientHeight;
 			canvas.addEventListener("mousedown", startDown, false);
 			canvas.addEventListener("mousemove", canvasMouseMove, false);
 			canvas.addEventListener("mouseup", canvasClick, false);
 			initGL(canvas);
 
 			canvas = $("2d-canvas");
+			canvas.width = canvas.clientWidth;
+			canvas.height = canvas.clientHeight;
 			canvas.addEventListener("mousedown", startDown, false);
 			canvas.addEventListener("mousemove", canvasMouseMove, false);
 			canvas.addEventListener("mouseup", canvasClick, false);
@@ -157,21 +161,47 @@
 			var displayVor = $("displayVor").checked;
 			
 			vor = new Voronoi(gl, gl2d, shaderProgram);
-			vor.init(numStipples, displayVor);
-			vor.draw();
 
 			tick();
 		}
 
-		function buttonClick() {
+		function start() {
 			var numStipples = $("numStipples").value;
+			var stippleSize = $("stippleSize").value;
 			var displayVor = $("displayVor").checked;
-			vor.reset(numStipples, displayVor);
+			vor.start(numStipples, stippleSize, displayVor);
+			$("status").innerHTML = "Running...";
+		}
+
+		function stop() {
+			vor.stop();
+		}
+
+		function stippleSizeChanged() {
+			vor.setStippleSize($("stippleSize").value);
+			vor.draw();
 		}
 
 		function displayVorClicked() {
 			vor.setDisplayVor($("displayVor").checked);
 			vor.draw();
+		}
+
+		function onFileSelected(event) {
+			var selectedFile = event.target.files[0];
+			var reader = new FileReader();
+
+			var img = $("theImage");
+			img.title = selectedFile.name;
+
+			reader.onload = function(event) {
+				img.onload = function() {
+					vor.setImage(img);
+				}
+				img.src = event.target.result;
+			};
+
+			reader.readAsDataURL(selectedFile);
 		}
 
 		/**
@@ -233,21 +263,31 @@
 			if (vor.isMakingCentroidal()) {
 				vor.moveToCentroid();
 			}
+			else {
+				$("status").innerHTML = "Stopped...";
+			}
 		}
 	</script>
 </head>
 
 <body onload="pageStart();">
-	<canvas id="2d-canvas" style="border: none; position: absolute;" width="900" height="550"></canvas>
-	<canvas id="main-canvas" style="border: none; position: absolute;" width="900" height="550"></canvas>
+	<div style="border-style: solid; border-width: 1px; position: absolute; width: 900px; height: 550px;">
+		<canvas id="2d-canvas" style="position: absolute; width: 100%; height: 100%;"></canvas>
+		<canvas id="main-canvas" style="position: absolute; width: 100%; height: 100%;"></canvas>
+		<img id="theImage" style="max-width: 100%; max-height: 100%;"/>
+	</div>
 	
 	<div style="margin-left: 900px; padding: 15px;">
 		<form>
 		# of stipple points: <input type="number" id="numStipples" min="1" max="20000" value="100" required><br>
-		Display Voronoi: <input type="checkbox" id="displayVor" checked="true" onclick="displayVorClicked();">Test</input> <br><br>
+		Stipple size: <input type="number" id="stippleSize" min="0.1" max="2.5" value="2.5" step="0.1" onchange="stippleSizeChanged();" required><br>
+		Display Voronoi: <input type="checkbox" id="displayVor" checked="true" onclick="displayVorClicked();">Test</input><br>
+		<input type="file" text="Choose photo" accept="image/*" onchange="onFileSelected(event)"/>
 		</form>
-		
-		<button type="button" onclick="buttonClick();">Submit</button>
+
+		<button type="button" onclick="start();">Start</button>
+		<button type="button" onclick="stop();">Stop</button>
+		<div id="status">Stopped...</div>
 	</div>
 </body>
 </html>

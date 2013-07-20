@@ -57,6 +57,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	var _coneRadius = 1500;			// How large each cone should be
 	var _fragments = 50;			// Determines how smooth the rendered cones are
 	var _verticesPerFragment = 3;	// Each fragment is a triangle
+	var _stippleSize = 2.5;
 
 	var _coneVertexPositionBuffer;
 
@@ -67,36 +68,16 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 	var _makingCentroidal;
 
-	this.init = function(numPoints, displayVor) {
-		this.initVertices();
-		_displayVor = displayVor;
-		_makingCentroidal = true;
-		this.resetPoints(numPoints);
-		//initTextureFrameBuffer();		// Is this needed????????
-	};
-
-	this.reset = function(numPoints, displayVor) {
-		this.resetPoints(numPoints);
-		_displayVor = displayVor;
-		_makingCentroidal = true;
-		this.draw();
-	}
-
-	this.setDisplayVor = function(value) {
-		_displayVor = value;
-	}
-
-	this.isMakingCentroidal = function() {
-		return _makingCentroidal;
-	}
+	var _theImage;
 
 	/**
+	 * @private
 	 * Initializes the cone vertex position buffer with all the vertices
 	 *
 	 * Each cone is made of triangles, the number of which is the value of _fragments
 	 * The point of the cone is away from the screen, such that we are facing the bottom of the cone
 	 */
-	this.initVertices = function() {
+	var _initVertices = function() {
 		_coneVertexPositionBuffer = _gl.createBuffer();
 		_gl.bindBuffer(_gl.ARRAY_BUFFER, _coneVertexPositionBuffer);
 
@@ -125,6 +106,40 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 		_gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	};
+
+	// Call this once the object is created
+	_initVertices();
+
+	/**
+	 * Starts the application
+	 * @param numPoints how many generating/stipple points to use
+	 * @param stippleSize the size of the stipple points
+	 * @param displayVor boolean if the voronoi diagram should be displayed or not
+	 */
+	this.start = function(numPoints, stippleSize, displayVor) {
+		this.resetPoints(numPoints);
+		_stippleSize = stippleSize;
+		_displayVor = displayVor;		
+		_makingCentroidal = true;
+		this.draw();
+	};
+
+	this.setStippleSize = function(value) {
+		_stippleSize = value;
+	}
+
+	this.setDisplayVor = function(value) {
+		_displayVor = value;
+	};
+
+	this.isMakingCentroidal = function() {
+		return _makingCentroidal;
+	};
+
+	this.stop = function() {
+		_makingCentroidal = false;
+	};
+
 
 	/**
 	 * Experimenting creating random poins to initialize the voronoi diagram
@@ -189,7 +204,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		
 		for (var i = 0; i < _points.length; ++i) {
 			// Draw the generating point on top of WebGL's rendering
-			this.drawCircle2D(_gl2d, _points[i].x, _points[i].y, 2.5);
+			this.drawCircle2D(_gl2d, _points[i].x, _points[i].y, _stippleSize);
 		}
 
 		if (force || _displayVor) {
@@ -276,7 +291,18 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	};
 
 	/**
-	 * TODO
+	 * @private
+	 * Implementation of Lloyd's algorithm.
+	 * Given a bunch of generating points and their created voronoi diagram,
+	 * iteratively moves the poinst to the centroids of their respective regions.
+	 *
+	 * The algorithm is as follows:
+	 * while generating points not converged to centroids, do:
+	 * 		Compute voronoi diagram
+	 *		Compute centroids
+	 *		Move each generating point to its centroid
+	 *
+	 * Given an image, the stipple density can be modified where regions are darkest
 	 */
 	var _calculateCentroids = function() {
 		var centroids = {};
@@ -323,7 +349,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 		var centroidPoints = [];
 		var averageDistanceMoved = 0;
-		var notMovingAnymore = 0.50;		// Value of the average distance moved which is considered "not moving" anymore
+		var notMovingAnymore = 0.80;		// Value of the average distance moved which is considered "not moving" anymore
 		for (color in _colorToPoints) {
 			var newPoint;
 			if (_colorToPoints.hasOwnProperty(color) &&
@@ -355,11 +381,15 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	};
 
 	/**
-	 * TODO
+	 * Gets the centroids at this point and draws the new voronoi diagram
 	 */
 	this.moveToCentroid = function() {
 		_points = _calculateCentroids();
 		this.draw();
+	};
+
+	this.setImage = function(img) {
+		_theImage = img;
 	};
 }
 
