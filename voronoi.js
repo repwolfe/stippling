@@ -345,10 +345,6 @@ function Voronoi(gl, gl2d, shaderProgram) {
 				color = color.toString();
 
 				var newY = (gl.canvas.height - 1 - y); // Inverse the y axis since its given upside down
-				var pixelDensity = _density(x, newY);
-				if (pixelDensity != 1) {
-					var test = "hi";
-				}
 				centroids[color].x += x * pixelDensity;
 				centroids[color].y +=  newY * pixelDensity;
 				regionTotals[color] += pixelDensity;	
@@ -403,6 +399,8 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	 */
 	this.setImage = function(img) {
 		var canvas = document.createElement('canvas');
+		canvas.width = img.width;
+		canvas.height = img.height;
 		var context = canvas.getContext('2d');
 		context.drawImage(img, 0, 0 );
 		_theImageData = context.getImageData(0, 0, img.width, img.height);
@@ -420,7 +418,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		}
 
 		// Invert the y axis
-		var color = _theImageData.data[(y *_theImageData.width * 4) + (x * 4)];
+		var color = _theImageData.data[(y * _theImageData.width * 4) + (x * 4)];
 		return 1.0 - (color / 255.0);
 	};
 }
