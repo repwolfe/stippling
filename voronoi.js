@@ -345,6 +345,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 				color = color.toString();
 
 				var newY = (gl.canvas.height - 1 - y); // Inverse the y axis since its given upside down
+				var pixelDensity = _density(x, newY);
 				centroids[color].x += x * pixelDensity;
 				centroids[color].y +=  newY * pixelDensity;
 				regionTotals[color] += pixelDensity;	
