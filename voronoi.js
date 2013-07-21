@@ -68,7 +68,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 	var _makingCentroidal;
 
-	var _theImage;
+	var _theImageData;
 
 	/**
 	 * @private
@@ -200,6 +200,10 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	 * generating point. The cones overlap, displaying the correct voronoi diagram
 	 */
 	this.draw = function(force) {
+		if (typeof _points == 'undefined') {
+			return;
+		}
+
 		_gl2d.clearRect(0, 0, $('2d-canvas').width, $('2d-canvas').height);
 		
 		for (var i = 0; i < _points.length; ++i) {
@@ -214,9 +218,9 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 			_gl.clearColor(0.0, 0.0, 0.0, 1.0);
 			// WebGL boilerplate code at the beginning of rendering
-			_gl.viewport(0, 0, _gl.viewportWidth, _gl.viewportHeight);
+			_gl.viewport(0, 0, _gl.canvas.width, _gl.canvas.height);
 			_gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
-			ortho(0, _gl.viewportWidth, _gl.viewportHeight, 0, -5, 5000);
+			ortho(0, _gl.canvas.width, _gl.canvas.height, 0, -5, 5000);
 			loadIdentity();
 
 			for (var i = 0; i < _points.length; ++i) {
@@ -340,16 +344,20 @@ function Voronoi(gl, gl2d, shaderProgram) {
 				color.a = 255;
 				color = color.toString();
 
-				var pixelDensity = 1.0;
+				var newY = (gl.canvas.height - 1 - y); // Inverse the y axis since its given upside down
+				var pixelDensity = _density(x, newY);
+				if (pixelDensity != 1) {
+					var test = "hi";
+				}
 				centroids[color].x += x * pixelDensity;
-				centroids[color].y += (gl.canvas.height - y) * pixelDensity;	// Inverse the y axis since its given upside down
+				centroids[color].y +=  newY * pixelDensity;
 				regionTotals[color] += pixelDensity;	
 			}
 		}
 
 		var centroidPoints = [];
-		var averageDistanceMoved = 0;
-		var notMovingAnymore = 0.80;		// Value of the average distance moved which is considered "not moving" anymore
+		var maximumDistanceMoved = 0;
+		var notMovingAnymore = 0.80;		// Value of the maximum distance moved which is considered "not moving" anymore
 		for (color in _colorToPoints) {
 			var newPoint;
 			if (_colorToPoints.hasOwnProperty(color) &&
@@ -365,14 +373,16 @@ function Voronoi(gl, gl2d, shaderProgram) {
 				var oldPoint = _colorToPoints[color];
 
 				var distanceMoved = Math.sqrt(Math.pow(oldPoint.x - newPoint.x, 2) + Math.pow(oldPoint.y - newPoint.y, 2));
-				averageDistanceMoved += distanceMoved;
+
+				if (distanceMoved >= maximumDistanceMoved) {
+					maximumDistanceMoved = distanceMoved;
+				}
 
 				_colorToPoints[color] = newPoint;
 			}
 		}
-		averageDistanceMoved /= centroidPoints.length;
 
-		if (averageDistanceMoved <= notMovingAnymore) {
+		if (maximumDistanceMoved <= notMovingAnymore) {
 			// Stop making it centroidal, it's basically there
 			_makingCentroidal = false;
 		}
@@ -388,8 +398,30 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		this.draw();
 	};
 
+	/**
+	 * Save the pixel data of the image
+	 */
 	this.setImage = function(img) {
-		_theImage = img;
+		var canvas = document.createElement('canvas');
+		var context = canvas.getContext('2d');
+		context.drawImage(img, 0, 0 );
+		_theImageData = context.getImageData(0, 0, img.width, img.height);
+	};
+
+	/**
+	 * @private
+	 * Using a grayscale image, its width and a pixel coordinate
+ 	 * return the density value, which is 1 if its white and 0 if it's black
+	 */
+	var _density = function(x, y) {
+		// if no image loaded or if pixels are outside the image's pixels pretend its white
+		if (typeof _theImageData == 'undefined' || x >= _theImageData.width || y >= _theImageData.height) {
+			return 1.0;
+		}
+
+		// Invert the y axis
+		var color = _theImageData.data[(y *_theImageData.width * 4) + (x * 4)];
+		return 1.0 - (color / 255.0);
 	};
 }
 
