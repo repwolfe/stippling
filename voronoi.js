@@ -1,6 +1,5 @@
 /***************
- Code adapted from:
- 	alexbeutel.com/webgl/voronoi.html
+ Voronoi diagram Code adapted from:	alexbeutel.com/webgl/voronoi.html
  ***************/
 
  /**** NOTE: var name == private, this.name == public ****/
@@ -58,6 +57,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	var _fragments = 50;			// Determines how smooth the rendered cones are
 	var _verticesPerFragment = 3;	// Each fragment is a triangle
 	var _stippleSize = 2.5;
+	var _stippleColor = "#000";		// Black initially
 
 	var _coneVertexPositionBuffer;
 
@@ -126,7 +126,11 @@ function Voronoi(gl, gl2d, shaderProgram) {
 
 	this.setStippleSize = function(value) {
 		_stippleSize = value;
-	}
+	};
+
+	this.setStippleColor = function(value) {
+		_stippleColor = value;
+	};
 
 	this.setDisplayVor = function(value) {
 		_displayVor = value;
@@ -276,9 +280,9 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		ctx.beginPath();
 		ctx.arc(x, y, radius, 0, Math.PI * 2, false);
 		ctx.closePath();
-		ctx.strokeStyle = "#000";
+		ctx.strokeStyle = _stippleColor;
 		ctx.stroke();
-		ctx.fillStyle = "#000";
+		ctx.fillStyle = _stippleColor;
 		ctx.fill();
 	};
 
@@ -327,11 +331,9 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		}
 
 		// Get the pixel colours to determine which region they belong to
-		_gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-		self.draw(true);
+		self.draw(true);		// Have to draw again to sample current pixel values
 		var pixels = new Uint8Array(_gl.canvas.width * _gl.canvas.height * 4);
 		_gl.readPixels(0, 0, _gl.canvas.width, _gl.canvas.height, _gl.RGBA, _gl.UNSIGNED_BYTE, pixels);
-		_gl.bindFramebuffer(_gl.FRAMEBUFFER, null);
 
 		for (var y = 0; y < _gl.canvas.height; ++y) {
 			for (var x = 0; x < _gl.canvas.width; ++x) {
@@ -422,38 +424,4 @@ function Voronoi(gl, gl2d, shaderProgram) {
 		var color = _theImageData.data[(y * _theImageData.width * 4) + (x * 4)];
 		return 1.0 - (color / 255.0);
 	};
-}
-
-var frameBuffer;
-var texture;
-
-/**
- * TODO: Determine if this is needed???? Currently unused
- * Create a texture and framebuffer to render the voronoi diagram to
- * This will allow us to capture pixel colors that are outputted, to determine voronoi regions
- */
-function initTextureFrameBuffer() {
-	frameBuffer = gl.createFramebuffer();
-	gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-	frameBuffer.width = gl.canvas.width;	// texture needs to be power of 2?????!!
-	frameBuffer.height = gl.canvas.height;
-
-	texture = gl.createTexture();
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-	gl.generateMipmap(gl.TEXTURE_2D);
-
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-	var renderbuffer = gl.createRenderbuffer();
-	gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-	gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
-
-	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);	// space for rendering colours is our texture
-	gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);		// depth information should use our depth buffer
-
-	gl.bindTexture(gl.TEXTURE_2D, null);
-	gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
