@@ -180,12 +180,19 @@
 			$("status").innerHTML = "Running...";
 			$("start").disabled = true;
 			$("stop").disabled = false;
+			$("save").disabled = false;
 		}
 
 		function stop() {
 			vor.stop();
 			$("start").disabled = false;
 			$("stop").disabled = true;
+		}
+
+		function save() {
+			var canvas = $("2d-canvas");
+			var img = canvas.toDataURL("image/png");
+			window.open(img, "Output", "resizable=0, location=0, width=" + (canvas.width + 50) + ", height=" + (canvas.height + 50));
 		}
 
 		function stippleSizeChanged() {
@@ -332,6 +339,7 @@
 
 		<button id="start" type="button" onclick="start();" disabled>Start</button>
 		<button id="stop" type="button" onclick="stop();" disabled>Stop</button>
+		<button id="save" type="button" onclick="save();" disabled>Save</button>
 		<div id="status">Stopped...</div>
 	</div>
 </body>

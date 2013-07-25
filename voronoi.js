@@ -117,7 +117,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	 * @param displayVor boolean if the voronoi diagram should be displayed or not
 	 */
 	this.start = function(numPoints, stippleSize, displayVor) {
-		this.resetPoints(numPoints);
+		_resetPoints(numPoints);
 		_stippleSize = stippleSize;
 		_displayVor = displayVor;		
 		_makingCentroidal = true;
@@ -149,7 +149,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	 * Experimenting creating random poins to initialize the voronoi diagram
 	 * @param numPoints how many points to create
 	 */
-	this.resetPoints = function(numPoints) {
+	var _resetPoints = function(numPoints) {
 		var wid = $('2d-canvas').width;
 		var hei = $('2d-canvas').height;
 
@@ -176,7 +176,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 			var c = new Color(r, g, b, MAX_VALUE);
 
 			p.vertexColorsSize = _fragments * _verticesPerFragment;
-			p.vertexColorsArray = this.getColorArray(c, p.vertexColorsSize);
+			p.vertexColorsArray = self.getColorArray(c, p.vertexColorsSize);
 			_points = _points.concat(p);
 			_colorToPoints[c.toString()] = p;
 		}
@@ -420,7 +420,6 @@ function Voronoi(gl, gl2d, shaderProgram) {
 			return 1.0;
 		}
 
-		// Invert the y axis
 		var color = _theImageData.data[(y * _theImageData.width * 4) + (x * 4)];
 		return 1.0 - (color / 255.0);
 	};
