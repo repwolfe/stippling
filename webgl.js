@@ -59,14 +59,6 @@ function setMatrixUniforms() {
 
 var gl;
 var gl2d;	// For drawing points
-function initGL(canvas) {
-	try {
-		gl = canvas.getContext("experimental-webgl");
-	}
-	catch(e) {
-		if (!gl) { alert("Could not initialize WebGL"); }
-	}
-}
 
 var shaderProgram;
 function initShaders() {
@@ -100,12 +92,15 @@ var vor;
  */
 function pageStart() {
 	var canvas = $("main-canvas");
+	gl = WebGLUtils.setupWebGL(canvas);
+	if (!gl) {
+		return;
+    }
 	canvas.width = canvas.clientWidth;
 	canvas.height = canvas.clientHeight;
 	canvas.addEventListener("mousedown", startDown, false);
 	canvas.addEventListener("mousemove", canvasMouseMove, false);
 	canvas.addEventListener("mouseup", canvasClick, false);
-	initGL(canvas);
 
 	canvas = $("2d-canvas");
 	canvas.width = canvas.clientWidth;
