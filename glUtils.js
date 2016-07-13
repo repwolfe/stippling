@@ -177,4 +177,4 @@ function makeOrtho(left, right, bottom, top, znear, zfar)
 /**
  * Convenience function to get access an HTML element
  */
-function $(id) { return document.getElementById(id); }
+function $g(id) { return document.getElementById(id); }

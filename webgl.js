@@ -91,7 +91,7 @@ var vor;
  * Sets up everything at startup
  */
 function pageStart() {
-	var canvas = $("main-canvas");
+	var canvas = $g("main-canvas");
 	gl = WebGLUtils.setupWebGL(canvas);
 	if (!gl) {
 		return;
@@ -102,7 +102,7 @@ function pageStart() {
 	canvas.addEventListener("mousemove", canvasMouseMove, false);
 	canvas.addEventListener("mouseup", canvasClick, false);
 
-	canvas = $("2d-canvas");
+	canvas = $g("2d-canvas");
 	canvas.width = canvas.clientWidth;
 	canvas.height = canvas.clientHeight;
 	canvas.addEventListener("mousedown", startDown, false);
@@ -113,8 +113,8 @@ function pageStart() {
 
 	initShaders();
 
-	var numStipples = $("numStipples").value;
-	var displayVor = $("displayVor").checked;
+	var numStipples = $g("numStipples").value;
+	var displayVor = $g("displayVor").checked;
 	
 	vor = new Voronoi(gl, gl2d, shaderProgram);
 
@@ -125,14 +125,14 @@ function pageStart() {
  * When the start button is pressed
  */
 function start() {
-	var numStipples = $("numStipples").value;
-	var stippleSize = $("stippleSize").value;
-	var displayVor = $("displayVor").checked;
+	var numStipples = $g("numStipples").value;
+	var stippleSize = $g("stippleSize").value;
+	var displayVor = $g("displayVor").checked;
 	vor.start(numStipples, stippleSize, displayVor);
-	$("status").innerHTML = "Running...";
-	$("start").disabled = true;
-	$("stop").disabled = false;
-	$("save").disabled = false;
+	$g("status").innerHTML = "Running...";
+	$g("start").disabled = true;
+	$g("stop").disabled = false;
+	$g("save").disabled = false;
 }
 
 /**
@@ -140,15 +140,15 @@ function start() {
  */
 function stop() {
 	vor.stop();
-	$("start").disabled = false;
-	$("stop").disabled = true;
+	$g("start").disabled = false;
+	$g("stop").disabled = true;
 }
 
 /**
  * When the save button is pressed
  */
 function save() {
-	var canvas = $("2d-canvas");
+	var canvas = $g("2d-canvas");
 	var img = canvas.toDataURL("image/png");
 	window.open(img, "Output", "resizable=0, location=0, width=" + (canvas.width + 50) + ", height=" + (canvas.height + 50));
 }
@@ -157,7 +157,7 @@ function save() {
  * When the stipple size control is modified
  */
 function stippleSizeChanged() {
-	vor.setStippleSize($("stippleSize").value);
+	vor.setStippleSize($g("stippleSize").value);
 	vor.draw();
 }
 
@@ -165,7 +165,7 @@ function stippleSizeChanged() {
  * When the stipple color control is modified
  */
 function stippleColorChanged() {
-	vor.setStippleColor($("stippleColor").value);
+	vor.setStippleColor($g("stippleColor").value);
 	vor.draw();
 }
 
@@ -173,7 +173,7 @@ function stippleColorChanged() {
  * When the display voronoi checkbox is clicked
  */
 function displayVorClicked() {
-	vor.setDisplayVor($("displayVor").checked);
+	vor.setDisplayVor($g("displayVor").checked);
 	vor.draw();
 }
 
@@ -181,11 +181,11 @@ function displayVorClicked() {
  * When the display image checkbox is clicked
  */
 function displayImageClicked() {
-	if ($("displayImage").checked) {
-		$("theImage").style.visibility = "visible";
+	if ($g("displayImage").checked) {
+		$g("theImage").style.visibility = "visible";
 	}
 	else {
-		$("theImage").style.visibility = "hidden";
+		$g("theImage").style.visibility = "hidden";
 	}
 }
 
@@ -201,7 +201,7 @@ function onFileSelected(event) {
 	var selectedFile = event.target.files[0];
 	var reader = new FileReader();
 
-	var img = $("theImage");
+	var img = $g("theImage");
 	img.title = selectedFile.name;
 
 	// When the image is loaded
@@ -209,7 +209,7 @@ function onFileSelected(event) {
 		img.onload = function() {
 			vor.setImage(img);
 			setCanvasSize(img.width, img.height);
-			$("start").disabled = false;
+			$g("start").disabled = false;
 		}
 		img.src = event.target.result;
 	};
@@ -222,12 +222,12 @@ function onFileSelected(event) {
  * Resizes the canvases used by WebGL
  */
 function setCanvasSize(width, height) {
-	$("canvases").style.width = "" + width + "px";
-	$("canvases").style.height = "" + height + "px";
-	var canvas = $("main-canvas");
+	$g("canvases").style.width = "" + width + "px";
+	$g("canvases").style.height = "" + height + "px";
+	var canvas = $g("main-canvas");
 	canvas.width = canvas.clientWidth;
 	canvas.height = canvas.clientHeight;
-	canvas = $("2d-canvas");
+	canvas = $g("2d-canvas");
 	canvas.width = canvas.clientWidth;
 	canvas.height = canvas.clientHeight;
 }
@@ -292,7 +292,7 @@ function tick() {
 		vor.moveToCentroid();
 	}
 	else {
-		$("status").innerHTML = "Stopped...";
-		$("start").disabled = false;
+		$g("status").innerHTML = "Stopped...";
+		$g("start").disabled = false;
 	}
 }

@@ -150,8 +150,8 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	 * @param numPoints how many points to create
 	 */
 	var _resetPoints = function(numPoints) {
-		var wid = $('2d-canvas').width;
-		var hei = $('2d-canvas').height;
+		var wid = $g('2d-canvas').width;
+		var hei = $g('2d-canvas').height;
 
 		// Color creation variables
 		var MAX_VALUE 		= 255;
@@ -208,7 +208,7 @@ function Voronoi(gl, gl2d, shaderProgram) {
 			return;
 		}
 
-		_gl2d.clearRect(0, 0, $('2d-canvas').width, $('2d-canvas').height);
+		_gl2d.clearRect(0, 0, $g('2d-canvas').width, $g('2d-canvas').height);
 		
 		for (var i = 0; i < _points.length; ++i) {
 			// Draw the generating point on top of WebGL's rendering
@@ -246,9 +246,9 @@ function Voronoi(gl, gl2d, shaderProgram) {
 	 * @param p location of cone's point (and center)
 	 */
 	this.drawCone = function(p) {
-		if (p.x > ($('main-canvas').width + _coneRadius) || 
+		if (p.x > ($g('main-canvas').width + _coneRadius) || 
 			p.x < (-1 * _coneRadius) ||
-			p.y > ($('main-canvas').height + _coneRadius) ||
+			p.y > ($g('main-canvas').height + _coneRadius) ||
 			p.y < (-1 * _coneRadius)) {
 			// Cone will not influence anything and is just slow, don't plot it
 			return;
