@@ -92,7 +92,9 @@ var vor;
  */
 function pageStart() {
 	var canvas = $g("main-canvas");
-	gl = WebGLUtils.setupWebGL(canvas);
+	gl = WebGLUtils.setupWebGL(canvas, {
+		antialias: false
+	});
 	if (!gl) {
 		return;
     }
